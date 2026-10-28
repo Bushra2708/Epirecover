@@ -1,0 +1,116 @@
+# EpiRecover — Runtime Configuration
+# Scoped for Tamil-Language Inscriptions in Current Version (v0.1)
+# All paths are relative to the project root unless they start with / or a drive letter.
+
+project:
+  name: EpiRecover
+  version: "0.1-tamil"
+  description: >
+    Evidence-Grounded Multimodal Reconstruction of Damaged Ancient
+    Indian Inscriptions from Monument Imagery (Tamil Inscriptions Focus)
+
+scope:
+  target_language: "tamil"
+  supported_scripts:
+    - id: "tamil"
+      name: "Modern Tamil Script"
+      ocr_supported: true
+      ocr_engine_lang: "tam"
+      description: "Standard modern Tamil script supported by Tesseract 'tam' and EasyOCR 'ta'."
+    - id: "tamil-brahmi"
+      name: "Tamil-Brahmi (தமிழி)"
+      ocr_supported: false
+      ocr_engine_lang: null
+      description: "Historical lithic script (3rd c. BCE - 5th c. CE). Standard OCR unavailable; requires epigraphic corpus retrieval or expert transcription."
+  extensible_future_languages:
+    - sanskrit
+    - prakrit
+    - kannada
+    - telugu
+
+paths:
+  data_root: data
+  raw_dir: data/raw
+  processed_dir: data/processed
+  annotations_dir: data/annotations
+  corpus_dir: data/corpus
+  models_dir: models
+  outputs_dir: outputs
+  predictions_dir: outputs/predictions
+  visualizations_dir: outputs/visualizations
+  reports_dir: outputs/reports
+
+corpus:
+  primary_language: "tamil"
+  # Tamil synthetic fixture file
+  tamil_fixture: data/corpus/tamil_inscriptions_sample.jsonl
+  bharatshri_fixture: data/corpus/bharatshri_sample.jsonl
+  bharatshri_real: ~
+  extra_corpora: []
+  enable_faiss: false
+  embedding_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+  faiss_index_path: models/corpus_faiss.index
+
+ocr:
+  target_language: "tamil"
+  tesseract_langs: "tam+eng"
+  easyocr_langs: ["ta", "en"]
+  scales: [1.0, 1.5, 2.0]
+  uncertainty_threshold: 30.0
+  unknown_marker: "[UNKNOWN]"
+
+preprocessing:
+  gaussian_ksize: 3
+  median_ksize: 3
+  clahe_clip_limit: 2.5
+  clahe_tile_grid: [8, 8]
+  adaptive_block_size: 31
+  adaptive_C: 10
+  morph_kernel_size: 2
+  max_image_dimension: 4096
+  allowed_extensions: [png, jpg, jpeg, webp, bmp, tif, tiff]
+  max_file_size_mb: 30
+
+damage_analysis:
+  method: heuristic  # heuristic | unet (requires trained weights)
+  unet_weights: ~    # path to U-Net weights if available
+  dark_threshold: 40
+  min_damage_area: 50
+  dilation_iterations: 2
+  label: "HEURISTIC_BASELINE"  # classical CV baseline, never claim this is a deep learning prediction
+
+reconstruction:
+  target_language: "tamil"
+  llm_backend: auto   # auto | gemini | groq | local | stub
+  max_candidates: 4
+  temperature: 0.2
+  max_tokens: 1500
+  enable_tamil_erosion_confusions: true
+  provenance_markers:
+    observed: "OBS"
+    ocr_predicted: "OCR"
+    corpus_retrieved: "COR"
+    model_inferred: "INF"
+    human_reviewed: "HUM"
+    unknown: "UNK"
+
+ranking:
+  weights:
+    visual_evidence: 0.20
+    ocr_confidence: 0.25
+    corpus_similarity: 0.30
+    script_compatibility: 0.15
+    source_quality: 0.10
+  weights_validated: false
+
+evaluation:
+  target_language: "tamil"
+  unicode_normalization: "NFC"
+  split_by: inscription_id
+  synthetic_damage_levels: [light, medium, heavy]
+  exclude_from_corpus_during_eval: true
+
+logging:
+  level: INFO
+  format: "%(asctime)s %(levelname)s %(name)s: %(message)s"
+  file: outputs/reports/epirecover.log

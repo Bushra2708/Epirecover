@@ -1,0 +1,90 @@
+[
+  {
+    "inscription_id": "TEST-INS-01",
+    "image_id": "DEC-TEST-INS-01",
+    "candidate_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "decision": "accepted",
+    "reviewed_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "reviewer_id": "expert_epigraphist",
+    "timestamp": "2026-10-25T18:17:52.145806+00:00",
+    "notes": "Verified against South Indian Inscriptions citation.",
+    "candidate_id": "CAND-01"
+  },
+  {
+    "inscription_id": "TEST-INS-01",
+    "image_id": "DEC-TEST-INS-01",
+    "candidate_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "decision": "accepted",
+    "reviewed_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "reviewer_id": "expert_epigraphist",
+    "timestamp": "2026-10-25T18:19:11.779850+00:00",
+    "notes": "Verified against South Indian Inscriptions citation.",
+    "candidate_id": "CAND-01"
+  },
+  {
+    "inscription_id": "TEST-INS-01",
+    "image_id": "DEC-TEST-INS-01",
+    "candidate_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "decision": "accepted",
+    "reviewed_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "reviewer_id": "expert_epigraphist",
+    "timestamp": "2026-10-25T18:19:49.158415+00:00",
+    "notes": "Verified against South Indian Inscriptions citation.",
+    "candidate_id": "CAND-01"
+  },
+  {
+    "inscription_id": "TEST-INS-01",
+    "image_id": "DEC-TEST-INS-01",
+    "candidate_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "decision": "accepted",
+    "reviewed_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "reviewer_id": "expert_epigraphist",
+    "timestamp": "2026-10-25T18:22:19.376406+00:00",
+    "notes": "Verified against South Indian Inscriptions citation.",
+    "candidate_id": "CAND-01"
+  },
+  {
+    "inscription_id": "TEST-INS-01",
+    "image_id": "DEC-TEST-INS-01",
+    "candidate_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "decision": "accepted",
+    "reviewed_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "reviewer_id": "expert_epigraphist",
+    "timestamp": "2026-10-25T19:05:19.202874+00:00",
+    "notes": "Verified against South Indian Inscriptions citation.",
+    "candidate_id": "CAND-01"
+  },
+  {
+    "inscription_id": "TEST-INS-01",
+    "image_id": "DEC-TEST-INS-01",
+    "candidate_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "decision": "accepted",
+    "reviewed_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "reviewer_id": "expert_epigraphist",
+    "timestamp": "2026-10-25T19:22:33.535459+00:00",
+    "notes": "Verified against South Indian Inscriptions citation.",
+    "candidate_id": "CAND-01"
+  },
+  {
+    "inscription_id": "TEST-INS-01",
+    "image_id": "DEC-TEST-INS-01",
+    "candidate_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "decision": "accepted",
+    "reviewed_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "reviewer_id": "expert_epigraphist",
+    "timestamp": "2026-10-25T19:26:28.425568+00:00",
+    "notes": "Verified against South Indian Inscriptions citation.",
+    "candidate_id": "CAND-01"
+  },
+  {
+    "inscription_id": "TEST-INS-01",
+    "image_id": "DEC-TEST-INS-01",
+    "candidate_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "decision": "accepted",
+    "reviewed_text": "ஸ்வஸ்தி ஸ்ரீ",
+    "reviewer_id": "expert_epigraphist",
+    "timestamp": "2026-10-25T19:29:04.016262+00:00",
+    "notes": "Verified against South Indian Inscriptions citation.",
+    "candidate_id": "CAND-01"
+  }
+]

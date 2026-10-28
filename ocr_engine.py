@@ -45,6 +45,37 @@ try:
 except ImportError:
     _HAS_EASY = False
 
+# Probe whether the Tamil model checkpoint actually loads.
+# EasyOCR 1.7.x ships a Tamil CTC head expecting 127 classes but some
+# cached checkpoints were built for 143 classes (older architecture).
+# The mismatch raises RuntimeError at Reader() construction time.
+_EASY_TAM_OK: bool = False
+_EASY_TAM_ERROR: str = ""
+
+def _probe_easyocr_tamil() -> None:
+    """Attempt to load EasyOCR Tamil reader; set _EASY_TAM_OK accordingly."""
+    global _EASY_TAM_OK, _EASY_TAM_ERROR
+    if not _HAS_EASY:
+        _EASY_TAM_ERROR = "easyocr package not installed"
+        return
+    try:
+        # Use a tiny in-memory test — we only care whether the model loads.
+        import easyocr as _eocr
+        _eocr.Reader(["ta", "en"], gpu=False, verbose=False)
+        _EASY_TAM_OK = True
+        log.info("EasyOCR Tamil model probe: OK")
+    except Exception as exc:
+        _EASY_TAM_ERROR = str(exc)
+        _EASY_TAM_OK = False
+        log.warning(
+            "EasyOCR Tamil model probe FAILED — Tamil OCR unavailable. "
+            "Cause: %s. "
+            "Workaround: downgrade easyocr to 1.6.x or replace the cached ta.pth checkpoint.",
+            exc,
+        )
+
+_probe_easyocr_tamil()
+
 
 # ---------------------------------------------------------------------------
 # Data containers
@@ -64,6 +95,8 @@ class OCRResult:
     engine: str = ""
     mean_confidence: float = 0.0
     language_hint: Optional[str] = None
+    script_hint: Optional[str] = None
+    warning_note: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -233,18 +266,115 @@ def _rescale(img: np.ndarray, factor: float) -> np.ndarray:
     return cv2.resize(img, None, fx=factor, fy=factor, interpolation=interp)
 
 
+def check_tamil_ocr_support() -> Dict[str, Any]:
+    """
+    Check environment for Tamil OCR capability.
+
+    Accurately probes whether the Tamil EasyOCR model checkpoint loads
+    without error, rather than just checking package installation.
+    Returns a status dict that the API /health endpoint and Streamlit UI use.
+    """
+    tess_installed = _HAS_TESS
+    tess_tam = False
+    if tess_installed:
+        try:
+            langs = pytesseract.get_languages()
+            tess_tam = "tam" in langs
+        except Exception:
+            tess_tam = False
+
+    easy_installed = _HAS_EASY
+    # _EASY_TAM_OK is set by _probe_easyocr_tamil() at import time.
+    easy_tam_model_ok = _EASY_TAM_OK
+    # Actual Tamil OCR is available only if either Tesseract+tam or a working
+    # EasyOCR Tamil checkpoint is present.
+    modern_tamil_supported = tess_tam or easy_tam_model_ok
+
+    notes_parts = [
+        "Standard OCR engines (Tesseract/EasyOCR) only support modern Tamil script with appropriate language data.",
+        "Historical Tamil-Brahmi lithic script is not supported by off-the-shelf models.",
+    ]
+    if not modern_tamil_supported:
+        if easy_installed and not easy_tam_model_ok:
+            notes_parts.append(
+                f"EasyOCR is installed but the Tamil (ta) model checkpoint failed to load: "
+                f"{_EASY_TAM_ERROR}. "
+                "Fix: downgrade easyocr to 1.6.x or replace the cached ta.pth checkpoint."
+            )
+        if not tess_installed:
+            notes_parts.append(
+                "Tesseract is not installed or not in PATH. "
+                "Install Tesseract 5.x and add to PATH, then install tam.traineddata."
+            )
+        elif not tess_tam:
+            notes_parts.append(
+                "Tesseract is installed but the 'tam' language pack is missing. "
+                "Download tam.traineddata into your tessdata directory."
+            )
+
+    return {
+        "tesseract_available": tess_installed,
+        "tesseract_tam_pack": tess_tam,
+        "easyocr_available": easy_installed,
+        "easyocr_tam_model_ok": easy_tam_model_ok,
+        "easyocr_tam_error": _EASY_TAM_ERROR if not easy_tam_model_ok else "",
+        "modern_tamil_supported": modern_tamil_supported,
+        "tamil_brahmi_supported": False,  # Standard OCR does not support historical Tamil-Brahmi
+        "notes": " ".join(notes_parts),
+    }
+
+
 def extract_text(
     img: np.ndarray,
-    tesseract_langs: str = "eng+san+tam+hin",
+    tesseract_langs: str = "tam+eng",
     easyocr_langs: Optional[List[str]] = None,
     scales: Tuple[float, ...] = (1.0, 1.5, 2.0),
+    script_hint: Optional[str] = None,
 ) -> OCRResult:
     """
-    Run the OCR ensemble. We try multiple scales because inscription glyphs
-    often need upscaling for Tesseract to latch onto strokes, but aggressive
-    upscaling amplifies noise — so we keep whichever scale wins.
+    Run the OCR ensemble for Tamil inscriptions.
+
+    Parameters
+    ----------
+    img : np.ndarray
+        Cleaned binary or preprocessed inscription image.
+    tesseract_langs : str
+        Tesseract language codes. Defaults to 'tam+eng' for Tamil scope.
+    easyocr_langs : list of str, optional
+        EasyOCR languages. Defaults to ['ta', 'en'].
+    scales : tuple of float
+        Multi-scale factors.
+    script_hint : str, optional
+        Target script: 'tamil' (modern) or 'tamil-brahmi' (historical).
+
+    Returns
+    -------
+    OCRResult with honest engine attribution, confidence, and script warnings.
     """
-    best: OCRResult = OCRResult(engine="none")
+    # 1. Historical Tamil-Brahmi script check:
+    # Standard OCR engines do not support Tamil-Brahmi. We report this transparently
+    # rather than pretending modern Tamil OCR or English OCR recognized it.
+    if script_hint and "tamil-brahmi" in script_hint.lower():
+        log.warning(
+            "Historical script 'tamil-brahmi' selected. Standard OCR engines "
+            "do not support ancient Tamil-Brahmi without specialized model weights."
+        )
+        return OCRResult(
+            raw_text="",
+            engine="unsupported_script",
+            script_hint="tamil-brahmi",
+            language_hint="Tamil",
+            warning_note=(
+                "Historical script 'tamil-brahmi' is not supported by standard Tesseract/EasyOCR models. "
+                "Ancient lithic Tamil-Brahmi cannot be processed by modern Tamil OCR. "
+                "Candidate readings will rely on historical epigraphic corpus retrieval and manual review."
+            ),
+        )
+
+    # 2. Modern Tamil script OCR:
+    easy_langs = easyocr_langs or ["ta", "en"]
+    best: OCRResult = OCRResult(engine="none", script_hint=script_hint or "tamil", language_hint="Tamil")
+    used_tamil_ocr = False  # Track whether a genuine Tamil-capable engine ran
 
     for s in scales:
         scaled = _rescale(img, s)
@@ -254,19 +384,56 @@ def extract_text(
                 r = _tesseract_ocr(scaled, langs=tesseract_langs)
                 if r.mean_confidence > best.mean_confidence and r.raw_text.strip():
                     best = r
+                    best.script_hint = script_hint or "tamil"
+                    used_tamil_ocr = True
             except Exception as e:
                 log.warning("Tesseract crashed at scale=%.2f: %s", s, e)
 
         if _HAS_EASY:
-            try:
-                r = _easyocr_ocr(scaled, langs=easyocr_langs)
-                if r.mean_confidence > best.mean_confidence and r.raw_text.strip():
-                    best = r
-            except Exception as e:
-                log.warning("EasyOCR crashed at scale=%.2f: %s", s, e)
+            if _EASY_TAM_OK:
+                # Tamil model is confirmed working — run Tamil+English reader.
+                try:
+                    r = _easyocr_ocr(scaled, langs=easy_langs)
+                    if r.mean_confidence > best.mean_confidence and r.raw_text.strip():
+                        best = r
+                        best.script_hint = script_hint or "tamil"
+                        used_tamil_ocr = True
+                except Exception as e:
+                    log.warning("EasyOCR crashed at scale=%.2f: %s", s, e)
+            else:
+                # Tamil checkpoint broken — do NOT run EasyOCR Tamil.
+                # Running English-only would produce Latin noise and mislead the pipeline.
+                log.debug(
+                    "Skipping EasyOCR at scale=%.2f — Tamil model checkpoint unavailable.", s
+                )
 
     if not best.raw_text:
-        log.warning("No OCR engine produced text. Is Tesseract or EasyOCR installed?")
+        support = check_tamil_ocr_support()
+        if not support["modern_tamil_supported"]:
+            best.warning_note = (
+                "Tamil OCR unavailable: Neither Tesseract (with 'tam.traineddata') nor a working "
+                "EasyOCR Tamil model is available in the current environment. "
+                "Candidates will be based on corpus retrieval and metadata only. "
+                "To fix: install Tesseract + tam.traineddata, or downgrade easyocr to 1.6.x."
+            )
+            best.engine = "none-tamil-ocr-unavailable"
+        else:
+            best.warning_note = "No Tamil characters detected in the image by available OCR engines."
+        log.warning("OCR output empty: %s", best.warning_note)
+    elif not used_tamil_ocr:
+        # OCR ran but only via an English fallback — flag the output as unreliable for Tamil.
+        best.warning_note = (
+            "OCR engines ran in English-fallback mode only (Tamil model unavailable). "
+            "Text output may not represent Tamil script content and should not be used as "
+            "primary evidence. See check_tamil_ocr_support() for details."
+        )
+        best.engine = best.engine + "-english-fallback" if best.engine else "easyocr-english-fallback"
+        log.warning(
+            "OCR produced text via English fallback engine (Tamil model unavailable). "
+            "Raw text '%s...' should NOT be treated as Tamil evidence.",
+            best.raw_text[:40],
+        )
+
     return best
 
 
